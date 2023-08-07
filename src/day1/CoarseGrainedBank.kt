@@ -3,7 +3,8 @@
 package day1
 
 import day1.Bank.Companion.MAX_AMOUNT
-import java.util.concurrent.locks.*
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 class CoarseGrainedBank(accountsNumber: Int) : Bank {
     private val accounts: Array<Account> = Array(accountsNumber) { Account() }
@@ -11,12 +12,12 @@ class CoarseGrainedBank(accountsNumber: Int) : Bank {
     // TODO: use this mutex to protect all bank operations.
     private val globalLock = ReentrantLock()
 
-    override fun getAmount(id: Int): Long {
+    override fun getAmount(id: Int): Long = globalLock.withLock {
         // TODO: Make this operation thread-safe via coarse-grained locking.
         return accounts[id].amount
     }
 
-    override fun deposit(id: Int, amount: Long): Long {
+    override fun deposit(id: Int, amount: Long): Long = globalLock.withLock {
         // TODO: Make this operation thread-safe via coarse-grained locking.
         require(amount > 0) { "Invalid amount: $amount" }
         val account = accounts[id]
@@ -25,7 +26,7 @@ class CoarseGrainedBank(accountsNumber: Int) : Bank {
         return account.amount
     }
 
-    override fun withdraw(id: Int, amount: Long): Long {
+    override fun withdraw(id: Int, amount: Long): Long = globalLock.withLock {
         // TODO: Make this operation thread-safe via coarse-grained locking.
         require(amount > 0) { "Invalid amount: $amount" }
         val account = accounts[id]
@@ -34,7 +35,7 @@ class CoarseGrainedBank(accountsNumber: Int) : Bank {
         return account.amount
     }
 
-    override fun transfer(fromId: Int, toId: Int, amount: Long) {
+    override fun transfer(fromId: Int, toId: Int, amount: Long) = globalLock.withLock {
         // TODO: Make this operation thread-safe via coarse-grained locking.
         require(amount > 0) { "Invalid amount: $amount" }
         require(fromId != toId) { "fromIndex == toIndex" }
