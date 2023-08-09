@@ -3,7 +3,8 @@
 package day3
 
 import day3.AtomicArrayWithCAS2AndImplementedDCSS.Status.*
-import java.util.concurrent.atomic.*
+import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.AtomicReferenceArray
 
 // This implementation never stores `null` values.
 class AtomicArrayWithCAS2AndImplementedDCSS<E : Any>(size: Int, initialValue: E) {
@@ -18,7 +19,15 @@ class AtomicArrayWithCAS2AndImplementedDCSS<E : Any>(size: Int, initialValue: E)
 
     fun get(index: Int): E {
         // TODO: Copy the implementation from `AtomicArrayWithCAS2Simplified`
-        TODO("Implement me")
+        val v = array[index]
+        if (v is AtomicArrayWithCAS2AndImplementedDCSS<*>.CAS2Descriptor) {
+            val status = v.status.get()!!
+            return when (status) {
+                SUCCESS -> if (v.index1 == index) v.update1 else v.update2
+                FAILED, UNDECIDED -> if (v.index1 == index) v.expected1 else v.expected2
+            } as E
+        }
+        return v as E
     }
 
     fun cas2(
@@ -51,9 +60,75 @@ class AtomicArrayWithCAS2AndImplementedDCSS<E : Any>(size: Int, initialValue: E)
     ) {
         val status = AtomicReference(UNDECIDED)
 
+        private fun installDesc(index: Int, expected: E): Boolean {
+            while (true) {
+                if (status.get() != UNDECIDED) {
+                    return status.get() == SUCCESS
+                }
+                when (val previous = array[index]) {
+                    expected -> {
+                        if (dcss(index, expected, this, status, UNDECIDED)) {  // set our descriptor if still needed
+                            return true
+                        }
+                    }
+
+                    this -> {
+                        return true  // our descriptor is already set successfully
+                    }
+
+                    is AtomicArrayWithCAS2AndImplementedDCSS<*>.CAS2Descriptor -> {
+                        previous.apply()  // other desc found, help applying it
+                    }
+
+                    else -> {
+                        return false  // some other value found, report failure
+                    }
+                }
+            }
+        }
+
+        private fun installDescs(): Int {
+            if (installDesc(index1, expected1)) {
+                if (installDesc(index2, expected2)) {
+                    return 2
+                }
+                return 1
+            }
+            return 0
+        }
+
+        private fun updateStatusLogicalUpdate(installed: Int): Boolean {
+            val new = when (installed) {
+                2 -> SUCCESS
+                else -> FAILED
+            }
+            return status.compareAndSet(UNDECIDED, new)
+        }
+
+        private fun updateCellsPhysicalUpdate() {
+            when (status.get()!!) {
+                SUCCESS -> {
+                    array.compareAndSet(index1, this, update1)
+                    array.compareAndSet(index2, this, update2)
+                }
+
+                FAILED -> {
+                    array.compareAndSet(index1, this, expected1)
+                    array.compareAndSet(index2, this, expected2)
+                }
+
+                UNDECIDED -> throw IllegalStateException("we set another status before calling this method")
+            }
+        }
+
         fun apply() {
             // TODO: Copy the implementation from `AtomicArrayWithCAS2Simplified`
             // TODO: and use `dcss(..)` to install the descriptor.
+            if (status.get() == UNDECIDED) {
+                val installed = installDescs()
+                updateStatusLogicalUpdate(installed)
+            }
+            updateCellsPhysicalUpdate()
         }
     }
 
