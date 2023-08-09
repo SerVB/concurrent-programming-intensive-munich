@@ -1,13 +1,17 @@
-import com.amazonaws.auth.*
-import com.amazonaws.regions.*
-import com.amazonaws.services.s3.*
-import org.jetbrains.kotlinx.lincheck.*
-import org.jetbrains.kotlinx.lincheck.strategy.managed.modelchecking.*
-import org.jetbrains.kotlinx.lincheck.strategy.stress.*
-import org.junit.*
-import org.junit.runners.*
-import java.io.*
-import kotlin.reflect.*
+import com.amazonaws.auth.AWSStaticCredentialsProvider
+import com.amazonaws.auth.BasicAWSCredentials
+import com.amazonaws.regions.Regions
+import com.amazonaws.services.s3.AmazonS3ClientBuilder
+import org.jetbrains.kotlinx.lincheck.LoggingLevel
+import org.jetbrains.kotlinx.lincheck.Options
+import org.jetbrains.kotlinx.lincheck.check
+import org.jetbrains.kotlinx.lincheck.strategy.managed.modelchecking.ModelCheckingOptions
+import org.jetbrains.kotlinx.lincheck.strategy.stress.StressOptions
+import org.junit.FixMethodOrder
+import org.junit.Test
+import org.junit.runners.MethodSorters
+import java.io.File
+import kotlin.reflect.KClass
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 abstract class TestBase(
@@ -28,6 +32,7 @@ abstract class TestBase(
             .actorsAfter(0)
             .checkObstructionFreedom(checkObstructionFreedom)
             .sequentialSpecification(sequentialSpecification.java)
+            .logLevel(LoggingLevel.INFO)
             .apply { customConfiguration() }
             .check(this::class.java)
     } catch (t: Throwable) {
@@ -45,6 +50,7 @@ abstract class TestBase(
             .actorsPerThread(2)
             .actorsAfter(0)
             .sequentialSpecification(sequentialSpecification.java)
+            .logLevel(LoggingLevel.INFO)
             .apply { customConfiguration() }
             .check(this::class.java)
     } catch (t: Throwable) {
